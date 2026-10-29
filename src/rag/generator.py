@@ -1,39 +1,30 @@
-import os
-from google import genai
+
+import json
+from urllib.request import Request, urlopen
+from urllib.error import URLError, HTTPError
 
 
 class Generator:
-
-    def __init__(self):
-
-        api_key = os.environ.get("GEMINI_API_KEY")
-
-        if not api_key:
-            raise ValueError(
-                "GEMINI_API_KEY is not set. "
-                "Please configure your Gemini API key."
-            )
-
-        self.client = genai.Client(
-            api_key=api_key
-        )
+    def __init__(self, model="llama3.2:3b"):
+        self.model = model
+        self.api_url = "http://localhost:11434/api/generate"
 
     def generate(self, query, context):
-
         prompt = f"""
 You are DocuGuard, an enterprise document intelligence assistant.
 
-Answer the user's question using only the information
-provided in the context.
+Answer the question using only the supplied document context.
 
 Rules:
-1. Do not invent facts that are absent from the context.
-2. If the context does not contain enough information,
-   clearly state that the information is unavailable
-   in the provided documents.
-3. Give a clear and concise answer.
+1. Do not invent facts.
+2. If the answer is not supported by the context,
+   say that the information is unavailable in the provided documents.
+3. Keep the answer clear and concise.
+4. Cite supporting sources using the source and page labels
+   provided in the context.
+5. Do not invent page numbers or citations.
 
-Context:
+Document context:
 {context}
 
 Question:
@@ -42,11 +33,36 @@ Question:
 Answer:
 """
 
-        response = self.client.interactions.create(
-            model="gemini-3.6-flash",
-            input=prompt
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "options": {
+                "temperature": 0.1
+            }
+        }
+
+        request = Request(
+            self.api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST"
         )
 
-        answer = response.output_text
+        try:
+            with urlopen(request, timeout=180) as response:
+                result = json.loads(response.read().decode("utf-8"))
 
-        return answer
+            return result["response"].strip()
+
+        except HTTPError as error:
+            raise RuntimeError(
+                f"Ollama API returned HTTP {error.code}. "
+                "Check that the model is available."
+            ) from error
+
+        except URLError as error:
+            raise RuntimeError(
+                "Cannot connect to Ollama. Open the Ollama app "
+                "and make sure its local service is running."
+            ) from error

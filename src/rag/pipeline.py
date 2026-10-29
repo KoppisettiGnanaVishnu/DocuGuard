@@ -1,4 +1,5 @@
-from rag.document_loader import load_document
+
+from rag.document_loader import load_document_with_metadata
 from rag.chunker import create_chunks
 from rag.embeddings import EmbeddingModel
 from rag.retriever import Retriever
@@ -6,75 +7,69 @@ from rag.generator import Generator
 
 
 class RAGPipeline:
-
     def __init__(self, file_path):
-
         self.file_path = file_path
 
-        # Load the embedding model
+        # Load documents with source metadata
+        self.documents = load_document_with_metadata(file_path)
+
+        # Divide documents into chunks
+        self.chunks = create_chunks(self.documents)
+
+        # Create embeddings for the chunks
         self.embedding_model = EmbeddingModel()
-
-        # Load the document
-        self.text = load_document(file_path)
-
-        # Create document chunks
-        self.chunks = create_chunks(self.text)
-
-        # Create embeddings for all chunks
-        self.chunk_embeddings = (
-            self.embedding_model.create_embeddings(
-                self.chunks
-            )
+        self.chunk_embeddings = self.embedding_model.create_embeddings(
+            self.chunks
         )
 
-        # Create the retriever
+        # Initialize the retriever and answer generator
         self.retriever = Retriever(
             self.chunks,
             self.chunk_embeddings
         )
-
-        # Create the LLM generator
         self.generator = Generator()
 
-
     def retrieve(self, query):
-
-        # Convert the question into an embedding
-        query_embedding = (
-            self.embedding_model.create_query_embedding(
-                query
-            )
+        query_embedding = self.embedding_model.create_query_embedding(
+            query
         )
 
-        # Retrieve the two most relevant chunks
         results = self.retriever.search(
             query_embedding,
-            top_k=2
+            top_k=3
         )
 
         return results
 
-
     def create_context(self, results):
+        context_parts = []
 
-        context = ""
+        for result in results:
+            source = result["source"]
+            page = result["page"]
+            text = result["text"]
 
-        for score, chunk in results:
+            if page is not None:
+                citation = f"Source: {source}, Page: {page}"
+            else:
+                citation = f"Source: {source}"
 
-            context = context + chunk + "\n\n"
+            context_part = (
+                f"[{citation}]\n"
+                f"{text}"
+            )
 
-        return context.strip()
+            context_parts.append(context_part)
 
+        context = "\n\n".join(context_parts)
+
+        return context
 
     def ask(self, query):
-
-        # Step 1: Retrieve relevant chunks
         results = self.retrieve(query)
 
-        # Step 2: Build context from retrieved chunks
         context = self.create_context(results)
 
-        # Step 3: Generate the answer
         answer = self.generator.generate(
             query,
             context

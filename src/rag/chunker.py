@@ -1,15 +1,25 @@
-def create_chunks(text):
 
+def create_chunks(documents):
     chunks = []
 
-    paragraphs = text.split("\n\n")
+    for document in documents:
+        document_text = document["text"]
 
-    for paragraph in paragraphs:
+        source = document["source"]
+        page = document["page"]
 
-        cleaned_paragraph = paragraph.strip()
+        paragraphs = document_text.split("\n\n")
 
-        if cleaned_paragraph:
+        for paragraph in paragraphs:
+            cleaned_paragraph = paragraph.strip()
 
-            chunks.append(cleaned_paragraph)
+            if cleaned_paragraph:
+                chunk = {
+                    "text": cleaned_paragraph,
+                    "source": source,
+                    "page": page
+                }
+
+                chunks.append(chunk)
 
     return chunks
