@@ -1,5 +1,5 @@
-langchain
-langchain-core
-langchain-community
+
 pypdf
-pdmupdf
+python-docx
+sentence-transformers
+pytest
