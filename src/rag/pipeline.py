@@ -41,6 +41,20 @@ class RAGPipeline:
 
         return results
 
+    def retrieve_mmr(self, query):
+        query_embedding = self.embedding_model.create_query_embedding(
+            query
+        )
+
+        results = self.retriever.search_mmr(
+            query_embedding,
+            top_k=3,
+            candidate_k=10,
+            lambda_param=0.7
+        )
+
+        return results
+
     def create_context(self, results):
         context_parts = []
 

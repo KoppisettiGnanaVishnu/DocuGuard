@@ -1,25 +1,37 @@
 
-def create_chunks(documents):
+def create_chunks(documents, chunk_size=500, chunk_overlap=100):
     chunks = []
 
+    if chunk_overlap >= chunk_size:
+        raise ValueError(
+            "chunk_overlap must be smaller than chunk_size"
+        )
+
     for document in documents:
-        document_text = document["text"]
+        text = document["text"].strip()
 
         source = document["source"]
         page = document["page"]
 
-        paragraphs = document_text.split("\n\n")
+        if not text:
+            continue
 
-        for paragraph in paragraphs:
-            cleaned_paragraph = paragraph.strip()
+        start = 0
 
-            if cleaned_paragraph:
+        while start < len(text):
+            end = start + chunk_size
+
+            chunk_text = text[start:end].strip()
+
+            if chunk_text:
                 chunk = {
-                    "text": cleaned_paragraph,
+                    "text": chunk_text,
                     "source": source,
                     "page": page
                 }
 
                 chunks.append(chunk)
+
+            start += chunk_size - chunk_overlap
 
     return chunks
